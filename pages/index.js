@@ -1,7 +1,11 @@
 import React, { useState } from "react";
-import parseWhois from "../utils/parseWhois";
 import ResultCard from "../components/ResultCard";
-import DomainForm from "../components/DomainForm";
+import parseWhois from "../utils/parseWhois";
+
+function validateDomain(domain) {
+  // 只允许类似 example.com 这种域名
+  return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain.trim());
+}
 
 export default function Home() {
   const [domain, setDomain] = useState("");
@@ -13,13 +17,12 @@ export default function Home() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]);
 
-  // 查询请求
   const onQuery = async () => {
     setError("");
     setResult(null);
-    const domainTrimmed = domain.trim();
-    if (!domainTrimmed) {
-      setError("请输入要查询的域名");
+    const dom = domain.trim().toLowerCase().replace(/^www\./, "");
+    if (!validateDomain(dom)) {
+      setError("请输入合法的域名，例如：example.com");
       return;
     }
     setLoading(true);
@@ -28,7 +31,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          domain: domainTrimmed,
+          domain: dom,
           protocol: protocol === "auto" ? undefined : protocol,
           customServer: customServer.trim() || undefined,
         }),
@@ -37,7 +40,7 @@ export default function Home() {
       if (!res.ok || !data || !data.raw) throw new Error(data.error || "查询失败");
       const parsed = parseWhois(data.raw);
       setResult(parsed);
-      setHistory(h => [{ domain: domainTrimmed, protocol: data.protocol, raw: data.raw }, ...h.slice(0, 4)]);
+      setHistory(h => [{ domain: dom, protocol: data.protocol, raw: data.raw }, ...h.filter(i => i.domain !== dom)].slice(0, 5));
     } catch (e) {
       setError(e.message || "查询异常");
     }
@@ -45,7 +48,7 @@ export default function Home() {
   };
 
   return (
-    <div className="main-container" style={{ marginTop: 18, marginBottom: 18 }}>
+    <div className="main-container" style={{ marginTop: 16, marginBottom: 16 }}>
       <h1 style={{
         fontSize: 28, fontWeight: 800, marginBottom: 8, textAlign: "center", letterSpacing: 1, color: "#19307A"
       }}>
@@ -54,18 +57,85 @@ export default function Home() {
       <div style={{ fontSize: 17, color: "#34495e", textAlign: "center", marginBottom: 14 }}>
         输入要查询的域名，获取详细信息（RDAP + WHOIS）
       </div>
-      <DomainForm
-        domain={domain}
-        setDomain={setDomain}
-        protocol={protocol}
-        setProtocol={setProtocol}
-        onQuery={onQuery}
-        loading={loading}
-        customServer={customServer}
-        setCustomServer={setCustomServer}
-        showCustomServer={showCustomServer}
-        setShowCustomServer={setShowCustomServer}
-      />
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          if (!loading) onQuery();
+        }}
+        style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <input
+            value={domain}
+            onChange={e => setDomain(e.target.value)}
+            placeholder="请输入域名，如 example.com"
+            style={{
+              flex: 1, minWidth: 0, padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6
+            }}
+            autoFocus
+            inputMode="url"
+            autoComplete="off"
+          />
+          <select
+            value={protocol}
+            onChange={e => setProtocol(e.target.value)}
+            style={{ padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
+          >
+            <option value="auto">自动选择协议</option>
+            <option value="whois">WHOIS</option>
+            <option value="rdap">RDAP</option>
+          </select>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              background: "#2469f7",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 20px",
+              fontWeight: 600,
+              fontSize: 16,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            查询
+          </button>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            style={{
+              background: "#eee",
+              border: "none",
+              borderRadius: 5,
+              padding: "4px 10px",
+              fontSize: 13,
+              cursor: "pointer"
+            }}
+            onClick={() => setShowCustomServer(v => !v)}
+          >
+            {showCustomServer ? "收起自定义Whois服务器" : "自定义Whois服务器"}
+          </button>
+        </div>
+        {showCustomServer && (
+          <div style={{ marginTop: 8 }}>
+            <input
+              value={customServer}
+              onChange={e => setCustomServer(e.target.value)}
+              placeholder="可选：自定义Whois服务器地址"
+              style={{
+                width: "100%",
+                padding: "8px",
+                fontSize: 15,
+                border: "1px solid #ccc",
+                borderRadius: 6,
+                marginTop: 4,
+              }}
+            />
+          </div>
+        )}
+      </form>
       <div style={{
         fontSize: 15, background: "#f8fafc", borderRadius: 8, color: "#345", padding: "10px 14px", margin: "0 0 10px 0"
       }}>
@@ -74,7 +144,6 @@ export default function Home() {
         自动选择协议：优先使用RDAP，失败后自动切换到WHOIS
       </div>
 
-      {/* 历史记录仅当前会话 */}
       {history.length > 0 &&
         <div style={{ margin: "18px 0 10px 0" }}>
           <div style={{ fontWeight: 600, color: "#19307A", marginBottom: 6, fontSize: 15 }}>
@@ -105,7 +174,6 @@ export default function Home() {
         </div>
       }
 
-      {/* 查询结果 */}
       {error && <div style={{ color: "#e74c3c", margin: "10px 0", fontWeight: 600 }}>{error}</div>}
       {result && <ResultCard data={result} />}
     </div>
