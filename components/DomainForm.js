@@ -1,11 +1,8 @@
 import React from "react";
-import { FaSyncAlt } from "react-icons/fa";
 
 export default function DomainForm({
   domain,
   setDomain,
-  protocol,
-  setProtocol,
   onQuery,
   loading,
   customServer,
@@ -20,65 +17,49 @@ export default function DomainForm({
         e.preventDefault();
         onQuery();
       }}
-      style={{ marginBottom: 12 }}
+      style={{ marginBottom: 0, marginTop: -8 }}
     >
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 15 }}>
         <input
           value={domain}
           onChange={e => setDomain(e.target.value)}
-          placeholder="请输入域名，如 example.com"
+          placeholder="Whois.com"
           style={{
-            flex: 1, minWidth: 0, padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6
+            width: "100%",
+            padding: "13px 15px",
+            fontSize: 18,
+            border: "1.5px solid #e7eaf0",
+            borderRadius: 8,
+            background: "#fff",
+            fontWeight: 500,
+            color: "#2a3957",
+            boxShadow: "none"
           }}
           autoFocus
         />
-        <select
-          value={protocol}
-          onChange={e => setProtocol(e.target.value)}
-          style={{ padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
-        >
-          <option value="auto">自动选择协议</option>
-          <option value="whois">WHOIS</option>
-          <option value="rdap">RDAP</option>
-        </select>
+      </div>
+      <div style={{ marginBottom: 18 }}>
         <button
           type="submit"
           disabled={loading}
           style={{
-            background: "#2469f7",
+            width: "100%",
+            background: "#131f3c",
             color: "#fff",
             border: "none",
-            borderRadius: 6,
-            padding: "8px 20px",
-            fontWeight: 600,
-            fontSize: 16,
+            borderRadius: 8,
+            padding: "14px 0",
+            fontWeight: 700,
+            fontSize: 18,
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.6 : 1,
+            letterSpacing: 1
           }}
         >
           查询
         </button>
-        {/* 刷新按钮只保持图标风格和原有样式一致 */}
-        <button
-          type="button"
-          onClick={onRefresh}
-          style={{
-            background: "#f7f7f7",
-            color: "#2469f7",
-            border: "none",
-            borderRadius: 6,
-            padding: "8px 14px",
-            fontSize: 16,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center"
-          }}
-        >
-          <FaSyncAlt style={{ marginRight: 6 }} />
-          刷新
-        </button>
       </div>
-      <div style={{ marginTop: 8 }}>
+      <div style={{ marginBottom: 10, color: "#6a7587", fontSize: 15, textAlign: "left" }}>
         <button
           type="button"
           style={{
