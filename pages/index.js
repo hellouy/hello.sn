@@ -5,8 +5,6 @@ function validateDomain(domain) {
   return /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$/.test(domain.trim());
 }
 
-const exampleHint = "example.com（无需加http://或www.）";
-
 export default function Home() {
   const [domain, setDomain] = useState("");
   const [protocol, setProtocol] = useState("auto");
@@ -37,7 +35,7 @@ export default function Home() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data || !data.raw) throw new Error(data.error || "查询失败");
+      if (!res.ok || !data || !data.raw) throw new Error(data.error || "查询失败，目前无法查询域名注册信息数据了");
       const parsed = parseWhois(data.raw);
       setResult(parsed);
       setHistory(h => [{ domain: dom, protocol: data.protocol, raw: data.raw }, ...h.filter(i => i.domain !== dom)].slice(0, 5));
@@ -50,10 +48,13 @@ export default function Home() {
   return (
     <div className="page-bg">
       <div className="card">
-        <div className="header">
-          <span className="title">域名查询工具</span>
+        <div className="header-row">
+          <div className="icon-placeholder" />
+          <div className="header-title-block">
+            <div className="big-title">域名查询工具</div>
+            <div className="sub-title">输入要查询的域名，获取详细信息（RDAP + WHOIS）</div>
+          </div>
         </div>
-        <div className="desc">输入要查询的域名，获取详细信息（RDAP + WHOIS）</div>
         <form
           className="form"
           onSubmit={e => {
@@ -65,10 +66,11 @@ export default function Home() {
             className="domain-input"
             value={domain}
             onChange={e => setDomain(e.target.value)}
-            placeholder="请输入域名，如 example.com"
+            placeholder="Whois.com"
             autoFocus
             inputMode="url"
             autoComplete="off"
+            spellCheck={false}
           />
           <div className="select-row">
             <select
@@ -77,13 +79,13 @@ export default function Home() {
               onChange={e => setProtocol(e.target.value)}
             >
               <option value="auto">自动选择协议</option>
-              <option value="whois">WHOIS</option>
-              <option value="rdap">RDAP</option>
+              <option value="whois">WHOIS 协议</option>
+              <option value="rdap">RDAP 协议</option>
             </select>
-            <button className="query-btn" type="submit" disabled={loading}>
-              查询
-            </button>
           </div>
+          <button className="query-btn" type="submit" disabled={loading}>
+            {loading ? "查询中..." : "查询"}
+          </button>
           <button
             type="button"
             className="custom-btn"
@@ -97,12 +99,13 @@ export default function Home() {
               value={customServer}
               onChange={e => setCustomServer(e.target.value)}
               placeholder="可选：自定义Whois服务器地址"
+              spellCheck={false}
             />
           )}
         </form>
         <div className="hint-block">
           支持查询全球常见顶级域名：.com, .net, .org, .cn, .io 等<br />
-          输入格式：{exampleHint}<br />
+          输入格式：example.com（无需添加http://或www.）<br />
           自动选择协议：优先使用RDAP，失败后自动切换到WHOIS
         </div>
         {history.length > 0 && (
@@ -115,7 +118,7 @@ export default function Home() {
                 <li key={i} className="history-item">
                   {h.domain}
                   <span className="history-proto">
-                    {h.protocol ? h.protocol.toUpperCase() + " 协议" : "自动"}
+                    {h.protocol ? (h.protocol.toUpperCase() + " 协议") : "自动"}
                   </span>
                   <button
                     className="history-show"
