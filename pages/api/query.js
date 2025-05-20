@@ -12,17 +12,21 @@ function isUnregistered(whoisRaw, rdap) {
 }
 
 export default async function handler(req, res) {
-  const { domain, server } = req.query; // 支持自定义whois server参数
+  const { domain, server } = req.query;
   res.setHeader("Cache-Control", "no-store");
   if (!domain || !validDomain(domain)) {
     res.status(400).json({ error: "请输入合法的域名参数" });
     return;
   }
   try {
-    const [whoisRaw, rdap] = await Promise.all([
-      whoisQuery(domain, server),
-      rdapQuery(domain)
+    // RDAP优先，如果失败再查Whois，或二者都查
+    let [rdap, whoisRaw] = await Promise.all([
+      rdapQuery(domain),
+      whoisQuery(domain, server)
     ]);
+    if (!whoisRaw && !rdap) {
+      throw new Error("RDAP和WHOIS均无法获取信息，域名或服务器异常");
+    }
     const whoisParsed = whoisRaw ? parseWhois(whoisRaw) : null;
     const registered = !isUnregistered(whoisRaw, rdap);
     res.status(200).json({
