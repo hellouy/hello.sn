@@ -58,7 +58,7 @@ export default function DomainForm({
         >
           查询
         </button>
-        {/* 刷新按钮统一风格 */}
+        {/* 刷新按钮只保持图标风格和原有样式一致 */}
         <button
           type="button"
           onClick={onRefresh}
