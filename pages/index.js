@@ -27,7 +27,7 @@ export default function Home() {
       if (customServer) url += `&server=${encodeURIComponent(customServer)}`;
       const resp = await fetch(url);
       const data = await resp.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) throw data; // 直接抛出整个data对象
       setResult(data);
       // 新增历史，去重
       if (!historyRef.current.includes(trimmed)) {
@@ -36,7 +36,7 @@ export default function Home() {
         setHistory(newHistory);
       }
     } catch (e) {
-      setResult({ error: e.message || "查询失败" });
+      setResult({ error: e.error || e.message || "查询失败", detail: e.detail });
     }
     setLoading(false);
   }
@@ -154,7 +154,12 @@ export default function Home() {
             <ResultCard data={result.whoisParsed} registered={result.registered} />
           )}
           {result && result.error && (
-            <div style={{ color: "red", marginTop: 16, fontWeight: 600, fontSize: 18 }}>{result.error}</div>
+            <div style={{ color: "red", marginTop: 16, fontWeight: 600, fontSize: 18 }}>
+              {result.error}
+              {result.detail && (
+                <pre style={{ color: "#a33", fontSize: 13, marginTop: 4, whiteSpace: "pre-wrap" }}>{result.detail}</pre>
+              )}
+            </div>
           )}
         </div>
 
