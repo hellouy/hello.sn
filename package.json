@@ -1,16 +1,29 @@
 {
   "name": "whois-lite",
   "version": "1.0.0",
+  "description": "极简易维护的 whois/rdap 域名查询工具，支持Vercel部署、协议切换、自定义whois服务器、限流和结构化原始数据展示。",
+  "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
+  "keywords": [
+    "whois",
+    "rdap",
+    "domain",
+    "查询",
+    "nextjs",
+    "vercel"
+  ],
+  "author": "hellouy",
+  "license": "MIT",
   "dependencies": {
     "next": "^13.5.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "whois": "^2.12.8",
-    "node-fetch": "^2.6.9"
+    "node-fetch": "^2.6.9",
+    "react-icons": "^4.11.0"
   }
 }
