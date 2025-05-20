@@ -20,7 +20,8 @@ function extractField(whois, patterns) {
   return '';
 }
 
-export default function parseWhois(whoisText) {
+module.exports = function parseWhois(whoisText) {
+  if (!whoisText) return {};
   // 常见whois文本字段的多种写法
   const patterns = {
     domainName: [
@@ -38,13 +39,15 @@ export default function parseWhois(whoisText) {
       /domain registration date\s*[:=]\s*([^\r\n]+)/i,
     ],
     expiryDate: [
-      /expir(y|ation)[\s_-]*date\s*[:=]\s*([^\r\n]+)/i,
-      /paid[\s_-]*till[\s_-]*date\s*[:=]\s*([^\r\n]+)/i,
-      /registry expiry date\s*[:=]\s*([^\r\n]+)/i,
+      /expiry[\s_-]*date\s*[:=]\s*([^\r\n]+)/i,
+      /expires[\s_-]*on\s*[:=]\s*([^\r\n]+)/i,
+      /expiration[\s_-]*date\s*[:=]\s*([^\r\n]+)/i,
+      /paid-till\s*[:=]\s*([^\r\n]+)/i,
     ],
     updatedDate: [
       /updated[\s_-]*date\s*[:=]\s*([^\r\n]+)/i,
-      /last[\s_-]*updated\s*[:=]\s*([^\r\n]+)/i,
+      /last modified\s*[:=]\s*([^\r\n]+)/i,
+      /last update\s*[:=]\s*([^\r\n]+)/i,
       /modified\s*[:=]\s*([^\r\n]+)/i,
     ],
     status: [
@@ -52,7 +55,7 @@ export default function parseWhois(whoisText) {
       /domain status\s*[:=]\s*([^\r\n]+)/i,
     ],
     dns: [
-      /name[\s_-]*server\s*[:=]\s*([^\r\n]+)/ig,
+      /name server\s*[:=]\s*([^\r\n]+)/ig,
       /nserver\s*[:=]\s*([^\r\n]+)/ig,
       /dns[\s_-]*server\s*[:=]\s*([^\r\n]+)/ig,
     ]
@@ -73,11 +76,10 @@ export default function parseWhois(whoisText) {
   for (const p of patterns.dns) {
     let m;
     while ((m = p.exec(whoisText))) {
-      dns.push(m[1].trim());
+      let d = m[1].trim();
+      if (d && !dns.includes(d)) dns.push(d);
     }
   }
-  dns = [...new Set(dns)]; // 去重
-
   return {
     domain,
     registrar,
@@ -88,4 +90,4 @@ export default function parseWhois(whoisText) {
     dns,
     raw: whoisText,
   };
-}
+};
