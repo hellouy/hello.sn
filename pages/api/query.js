@@ -12,7 +12,7 @@ function isUnregistered(whoisRaw, rdap) {
 }
 
 export default async function handler(req, res) {
-  const { domain } = req.query;
+  const { domain, server } = req.query; // 支持自定义whois server参数
   res.setHeader("Cache-Control", "no-store");
   if (!domain || !validDomain(domain)) {
     res.status(400).json({ error: "请输入合法的域名参数" });
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
   try {
     const [whoisRaw, rdap] = await Promise.all([
-      whoisQuery(domain),
+      whoisQuery(domain, server),
       rdapQuery(domain)
     ]);
     const whoisParsed = whoisRaw ? parseWhois(whoisRaw) : null;
@@ -33,6 +33,6 @@ export default async function handler(req, res) {
       registered
     });
   } catch (e) {
-    res.status(500).json({ error: "查询出错", detail: e.toString() });
+    res.status(500).json({ error: "查询出错", detail: e && e.message ? e.message : String(e) });
   }
 }
