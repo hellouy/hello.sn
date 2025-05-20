@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 export default function DomainForm({
   domain,
@@ -18,14 +18,16 @@ export default function DomainForm({
         e.preventDefault();
         onQuery();
       }}
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: 12 }}
     >
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <input
           value={domain}
           onChange={e => setDomain(e.target.value)}
           placeholder="请输入域名，如 example.com"
-          style={{ flex: 1, minWidth: 0, padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
+          style={{
+            flex: 1, minWidth: 0, padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6
+          }}
           autoFocus
         />
         <select
@@ -33,6 +35,7 @@ export default function DomainForm({
           onChange={e => setProtocol(e.target.value)}
           style={{ padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
         >
+          <option value="auto">自动选择协议</option>
           <option value="whois">WHOIS</option>
           <option value="rdap">RDAP</option>
         </select>
