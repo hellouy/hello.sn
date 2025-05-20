@@ -25,7 +25,6 @@ function isUnregistered(whoisRaw, rdap) {
   return false;
 }
 
-// 加载自定义whois server
 function getCustomWhoisServer(domain, userInput) {
   if (userInput) return userInput;
   const ext = domain.split(".").pop().toLowerCase();
@@ -43,7 +42,20 @@ export default async function handler(req, res) {
     res.status(429).json({ error: "请求过于频繁，请稍后再试" });
     return;
   }
-  const { domain, protocol = "rdap", whoisServer: userWhoisServer } = req.query;
+
+  // 支持 POST/GET
+  let domain, protocol, userWhoisServer;
+  if (req.method === "POST") {
+    const body = req.body || {};
+    domain = body.domain;
+    protocol = body.protocol || "rdap";
+    userWhoisServer = body.customServer;
+  } else {
+    domain = req.query.domain;
+    protocol = req.query.protocol || "rdap";
+    userWhoisServer = req.query.whoisServer;
+  }
+
   res.setHeader("Cache-Control", "no-store");
   if (!domain || !validDomain(domain)) {
     res.status(400).json({ error: "请输入合法的域名参数" });
@@ -52,7 +64,7 @@ export default async function handler(req, res) {
   try {
     // RDAP优先/WHOIS备用
     let whoisRaw = null, rdap = null, protocolUsed = protocol;
-    if (protocol === "rdap") {
+    if (protocol === "rdap" || protocol === "auto") {
       rdap = await rdapQuery(domain);
       if (!rdap) { // fallback to whois
         protocolUsed = "whois";
