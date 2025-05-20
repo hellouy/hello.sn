@@ -9,7 +9,6 @@ import {
 } from "react-icons/fa";
 
 export default function ResultCard({ data }) {
-  // 兼容空对象
   if (!data) return null;
   const {
     domain,
