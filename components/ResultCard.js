@@ -8,7 +8,7 @@ import {
   FaRegFlag
 } from "react-icons/fa";
 
-export default function ResultCard({ data }) {
+export default function ResultCard({ data, registered }) {
   if (!data) return null;
   const {
     domain,
@@ -38,7 +38,7 @@ export default function ResultCard({ data }) {
       </div>
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaServer style={{ marginRight: 4, color: "#49b" }} />
-        注册商: {registrar || <span style={{ color: "#aaa" }}>-</span>}
+        WHOIS服务器: {registrar ? registrar : <span style={{ color: "#aaa" }}>whois.nic.bn</span>}
       </div>
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaCalendarAlt style={{ marginRight: 4, color: "#2a9d8f" }} />
@@ -54,7 +54,9 @@ export default function ResultCard({ data }) {
       </div>
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaInfoCircle style={{ marginRight: 4, color: "#f39c12" }} />
-        状态: {status || <span style={{ color: "#aaa" }}>-</span>}
+        状态: {registered === false
+          ? <span style={{ color: "#E76F51" }}>未注册</span>
+          : <span style={{ color: "#2A9D8F" }}>已注册</span>}
       </div>
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaKey style={{ marginRight: 4, color: "#00aaff" }} />
@@ -70,9 +72,9 @@ export default function ResultCard({ data }) {
         <summary style={{ cursor: "pointer", color: "#2469f7", fontWeight: 600, fontSize: 15 }}>
           查看原始数据
         </summary>
-        <div className="result-raw">
-          <pre style={{ margin: 0, fontSize: 13 }}>{raw}</pre>
-        </div>
+        <pre style={{ marginTop: 8, fontSize: 13, background: "#f8f8fa", borderRadius: 8, padding: 10 }}>
+          {raw}
+        </pre>
       </details>
     </div>
   );
