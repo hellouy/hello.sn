@@ -66,7 +66,6 @@ export default function ResultCard({ data, registered }) {
         <FaCalendarAlt style={{ marginRight: 4, color: "#8d37ff" }} />
         更新时间: {updated || <span style={{ color: "#aaa" }}>-</span>}
       </div>
-      {/* 只改动状态区域的展示 */}
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaInfoCircle style={{ marginRight: 4, color: "#f39c12" }} />
         状态: {regStatus}
