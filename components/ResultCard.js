@@ -21,6 +21,20 @@ export default function ResultCard({ data, registered }) {
     raw
   } = data;
 
+  // 判断域名注册状态展示文本
+  const regStatus = registered === false
+    ? <span style={{ color: "#E76F51" }}>未注册</span>
+    : <span style={{ color: "#2A9D8F" }}>已注册</span>;
+
+  // 状态详情（只在已注册时显示，未注册时无 EPP 状态）
+  const statusDetail = registered === false
+    ? null
+    : (
+      <span style={{ color: "#2a9d8f" }}>
+        {status ? status : "-"}
+      </span>
+    );
+
   return (
     <div
       style={{
@@ -52,11 +66,13 @@ export default function ResultCard({ data, registered }) {
         <FaCalendarAlt style={{ marginRight: 4, color: "#8d37ff" }} />
         更新时间: {updated || <span style={{ color: "#aaa" }}>-</span>}
       </div>
+      {/* 只改动状态区域的展示 */}
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaInfoCircle style={{ marginRight: 4, color: "#f39c12" }} />
-        状态: {registered === false
-          ? <span style={{ color: "#E76F51" }}>未注册</span>
-          : <span style={{ color: "#2A9D8F" }}>已注册</span>}
+        状态: {regStatus}
+        {registered !== false && statusDetail && (
+          <span style={{ marginLeft: 8 }}>{statusDetail}</span>
+        )}
       </div>
       <div style={{ marginBottom: 4, color: "#444", fontSize: 15 }}>
         <FaKey style={{ marginRight: 4, color: "#00aaff" }} />
