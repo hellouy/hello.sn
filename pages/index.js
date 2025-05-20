@@ -2,12 +2,10 @@ import React, { useState, useRef } from "react";
 import DomainForm from "../components/DomainForm";
 import ResultCard from "../components/ResultCard";
 import Loader from "../components/Loader";
-import ProtocolTabs from "../components/ProtocolTabs";
 
 export default function Home() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [protocol, setProtocol] = useState("auto");
   const [domain, setDomain] = useState("");
   const [customServer, setCustomServer] = useState("");
   const [showCustomServer, setShowCustomServer] = useState(false);
@@ -17,21 +15,28 @@ export default function Home() {
   const historyRef = useRef([]);
 
   async function handleSearch(searchDomain = domain) {
-    if (!searchDomain) return;
+    const trimmed = (searchDomain || "").trim().toLowerCase();
+    if (!trimmed || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(trimmed)) {
+      setResult({ error: "请输入正确格式的域名" });
+      return;
+    }
     setLoading(true);
     setResult(null);
     try {
-      const resp = await fetch(`/api/query?domain=${encodeURIComponent(searchDomain)}`);
+      let url = `/api/query?domain=${encodeURIComponent(trimmed)}`;
+      if (customServer) url += `&server=${encodeURIComponent(customServer)}`;
+      const resp = await fetch(url);
       const data = await resp.json();
+      if (data.error) throw new Error(data.error);
       setResult(data);
       // 新增历史，去重
-      if (!historyRef.current.includes(searchDomain)) {
-        const newHistory = [searchDomain, ...historyRef.current].slice(0, 8);
+      if (!historyRef.current.includes(trimmed)) {
+        const newHistory = [trimmed, ...historyRef.current].slice(0, 8);
         historyRef.current = newHistory;
         setHistory(newHistory);
       }
-    } catch {
-      setResult({ error: "查询失败" });
+    } catch (e) {
+      setResult({ error: e.message || "查询失败" });
     }
     setLoading(false);
   }
@@ -46,77 +51,116 @@ export default function Home() {
   }
 
   return (
-    <div style={{ maxWidth: 470, margin: "40px auto", padding: 18 }}>
-      <h2 style={{ fontWeight: 700, fontSize: 26, marginBottom: 20 }}>域名查询工具</h2>
-      <DomainForm
-        domain={domain}
-        setDomain={setDomain}
-        protocol={protocol}
-        setProtocol={setProtocol}
-        onQuery={() => handleSearch(domain)}
-        loading={loading}
-        customServer={customServer}
-        setCustomServer={setCustomServer}
-        showCustomServer={showCustomServer}
-        setShowCustomServer={setShowCustomServer}
-        onRefresh={handleRefresh}
-      />
-      {/* 最近查询记录 */}
-      {history.length > 0 && (
-        <div style={{ margin: "12px 0 0 0", fontSize: 14, color: "#888" }}>
-          <span role="img" aria-label="search">🔍</span> 最近查询：
-          {history.map(h => (
-            <span
-              key={h}
-              style={{
-                margin: "0 8px 0 0",
-                cursor: "pointer",
-                color: "#2469f7",
-                textDecoration: "underline"
-              }}
-              onClick={() => handleHistoryClick(h)}
-            >
-              {h}
-            </span>
-          ))}
-        </div>
-      )}
-      <ProtocolTabs protocol={protocol} onSwitch={setProtocol} />
-      {/* 刷新按钮 */}
-      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 8 }}>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          style={{
-            background: "#f7f7f7",
-            color: "#2469f7",
-            border: "none",
-            outline: "none",
-            borderRadius: 16,
-            padding: "3px 18px",
+    <div style={{ background: "#fafbfc", minHeight: "100vh" }}>
+      <div style={{ maxWidth: 470, margin: "20px auto 0 auto", padding: 0 }}>
+        <div style={{
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 2px 10px #f1f2f7",
+          padding: "28px 22px 24px 22px",
+          marginBottom: 20,
+          position: "relative"
+        }}>
+          <h2 style={{
+            fontWeight: 700,
+            fontSize: 32,
+            margin: 0,
+            color: "#212a3a",
+            letterSpacing: 1
+          }}>域名查询工具</h2>
+          <div style={{ fontSize: 17, color: "#6a7587", margin: "16px 0 24px 0", fontWeight: 500, letterSpacing: 0.2 }}>
+            输入要查询的域名，获取详细信息（RDAP + WHOIS）
+          </div>
+          <DomainForm
+            domain={domain}
+            setDomain={setDomain}
+            onQuery={() => handleSearch(domain)}
+            loading={loading}
+            customServer={customServer}
+            setCustomServer={setCustomServer}
+            showCustomServer={showCustomServer}
+            setShowCustomServer={setShowCustomServer}
+            onRefresh={handleRefresh}
+          />
+          {/* 说明文案 */}
+          <div style={{
+            background: "#f6f8fa",
+            borderRadius: 12,
+            padding: "14px 13px",
+            color: "#5c667b",
             fontSize: 15,
-            fontWeight: 600,
+            margin: "0 0 6px 0"
+          }}>
+            支持查询全球常见顶级域名：.com, .net, .org, .cn, .io 等<br />
+            输入格式：example.com（无需添加http://或www.）
+          </div>
+        </div>
+
+        {/* 最近查询 */}
+        {history.length > 0 && (
+          <div style={{
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 2px 10px #f1f2f7",
+            padding: "18px 18px 12px 18px",
+            marginBottom: 18
+          }}>
+            <div style={{ fontSize: 15, color: "#7b8ba0", marginBottom: 8 }}>
+              <span role="img" aria-label="search" style={{ fontSize: 17, marginRight: 2 }}>🔍</span>
+              最近查询：
+              {history.map((h) => (
+                <span key={h} style={{ margin: "0 10px 0 4px", fontWeight: 600, color: "#212a3a" }}>
+                  <span
+                    style={{ cursor: "pointer", color: "#2469f7", textDecoration: "underline", fontWeight: 500 }}
+                    onClick={() => handleHistoryClick(h)}
+                  >{h}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 查询主内容 */}
+        <div>
+          <div style={{
             display: "flex",
             alignItems: "center",
-            cursor: "pointer"
-          }}
-        >
-          <span style={{ display: "flex", alignItems: "center" }}>
-            {/* 统一风格刷新图标 */}
-            <svg style={{ marginRight: 6 }} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10a7.5 7.5 0 0113.06-4.45l.94-1.45A9 9 0 103 10h2zm14-7v6h-6l2.21-2.21A6.47 6.47 0 002.5 10h2A4.5 4.5 0 1116.5 10h2A6.47 6.47 0 0016.5 3.8z" fill="#2469f7"/></svg>
-            刷新
-          </span>
-        </button>
-      </div>
-      {loading && <Loader />}
-      {result && !result.error && (
-        <ResultCard data={result.whoisParsed} registered={result.registered} />
-      )}
-      {result && result.error && (
-        <div style={{ color: "red", marginTop: 16 }}>{result.error}</div>
-      )}
-      <div style={{ marginTop: 30, color: "#bbb", fontSize: 13, textAlign: "center" }}>
-        Powered by Whois/RDAP | <a href="https://github.com/hellouy" target="_blank" rel="noopener noreferrer">GitHub</a>
+            justifyContent: "flex-end",
+            marginBottom: 8
+          }}>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              style={{
+                background: "#f7f7f7",
+                color: "#2469f7",
+                border: "none",
+                outline: "none",
+                borderRadius: 16,
+                padding: "3px 18px",
+                fontSize: 15,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer"
+              }}
+            >
+              <svg style={{ marginRight: 6 }} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M2.5 10a7.5 7.5 0 0113.06-4.45l.94-1.45A9 9 0 103 10h2zm14-7v6h-6l2.21-2.21A6.47 6.47 0 002.5 10h2A4.5 4.5 0 1116.5 10h2A6.47 6.47 0 0016.5 3.8z" fill="#2469f7"/></svg>
+              刷新
+            </button>
+          </div>
+          {loading && <Loader />}
+          {result && !result.error && (
+            <ResultCard data={result.whoisParsed} registered={result.registered} />
+          )}
+          {result && result.error && (
+            <div style={{ color: "red", marginTop: 16, fontWeight: 600, fontSize: 18 }}>{result.error}</div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 40, color: "#bbb", fontSize: 13, textAlign: "center" }}>
+          Powered by Whois/RDAP | <a href="https://github.com/hellouy" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
       </div>
     </div>
   );
