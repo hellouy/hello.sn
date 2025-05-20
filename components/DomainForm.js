@@ -1,36 +1,92 @@
 import React, { useState } from "react";
 
-export default function DomainForm({ onSearch, loading, whoisServer, setWhoisServer }) {
-  const [input, setInput] = useState("");
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (input.trim()) onSearch(input.trim(), whoisServer);
-  }
+export default function DomainForm({
+  domain,
+  setDomain,
+  protocol,
+  setProtocol,
+  onQuery,
+  loading,
+  customServer,
+  setCustomServer,
+  showCustomServer,
+  setShowCustomServer,
+}) {
   return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", marginBottom: 18, gap: 8 }}>
-      <input
-        value={input}
-        onChange={e => setInput(e.target.value)}
-        placeholder="输入域名"
-        style={{ flex: 1, fontSize: 16, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
-        disabled={loading}
-      />
-      <input
-        type="text"
-        value={whoisServer || ""}
-        onChange={e => setWhoisServer(e.target.value)}
-        placeholder="自定义WHOIS服务器(可选)"
-        style={{ width: 190, fontSize: 15, padding: 8, borderRadius: 6, border: "1px solid #eee" }}
-        disabled={loading}
-      />
-      <button
-        type="submit"
-        style={{
-          padding: "8px 17px", fontSize: 16,
-          background: "#222", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer"
-        }}
-        disabled={loading}
-      >查询</button>
+    <form
+      onSubmit={e => {
+        e.preventDefault();
+        onQuery();
+      }}
+      style={{ marginBottom: 16 }}
+    >
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <input
+          value={domain}
+          onChange={e => setDomain(e.target.value)}
+          placeholder="请输入域名，如 example.com"
+          style={{ flex: 1, minWidth: 0, padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
+          autoFocus
+        />
+        <select
+          value={protocol}
+          onChange={e => setProtocol(e.target.value)}
+          style={{ padding: "8px", fontSize: 16, border: "1px solid #ccc", borderRadius: 6 }}
+        >
+          <option value="whois">WHOIS</option>
+          <option value="rdap">RDAP</option>
+        </select>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            background: "#2469f7",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 20px",
+            fontWeight: 600,
+            fontSize: 16,
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          查询
+        </button>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <button
+          type="button"
+          style={{
+            background: "#eee",
+            border: "none",
+            borderRadius: 5,
+            padding: "4px 10px",
+            fontSize: 13,
+            cursor: "pointer"
+          }}
+          onClick={() => setShowCustomServer(v => !v)}
+        >
+          {showCustomServer ? "收起自定义Whois服务器" : "自定义Whois服务器"}
+        </button>
+      </div>
+      {showCustomServer && (
+        <div style={{ marginTop: 8 }}>
+          <input
+            value={customServer}
+            onChange={e => setCustomServer(e.target.value)}
+            placeholder="可选：自定义Whois服务器地址"
+            style={{
+              width: "100%",
+              padding: "8px",
+              fontSize: 15,
+              border: "1px solid #ccc",
+              borderRadius: 6,
+              marginTop: 4,
+            }}
+          />
+        </div>
+      )}
     </form>
   );
 }
