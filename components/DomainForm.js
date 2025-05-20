@@ -1,4 +1,5 @@
 import React from "react";
+import { FaSyncAlt } from "react-icons/fa";
 
 export default function DomainForm({
   domain,
@@ -11,6 +12,7 @@ export default function DomainForm({
   setCustomServer,
   showCustomServer,
   setShowCustomServer,
+  onRefresh
 }) {
   return (
     <form
@@ -55,6 +57,25 @@ export default function DomainForm({
           }}
         >
           查询
+        </button>
+        {/* 刷新按钮统一风格 */}
+        <button
+          type="button"
+          onClick={onRefresh}
+          style={{
+            background: "#f7f7f7",
+            color: "#2469f7",
+            border: "none",
+            borderRadius: 6,
+            padding: "8px 14px",
+            fontSize: 16,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center"
+          }}
+        >
+          <FaSyncAlt style={{ marginRight: 6 }} />
+          刷新
         </button>
       </div>
       <div style={{ marginTop: 8 }}>
