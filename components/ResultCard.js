@@ -14,7 +14,7 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         <h3 style={{ fontWeight: 700, fontSize: 22, color: "#2469f7", margin: 0 }}>
           WHOIS信息
         </h3>
-        <div style={{ fontSize: 15, margin: "10px 0 0 0", color: registered ? "#2ba95b" : "#b33" }}>
+        <div style={{ fontSize: 15, margin: "10px 0 0 0", color: registered ? "#2ba95b" : "#b33", fontWeight: 600 }}>
           {registered ? "已注册" : "未注册"}
         </div>
         {data.domainName && <div>域名：{data.domainName}</div>}
@@ -26,8 +26,18 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         {data.nameServers && data.nameServers.length > 0 && (
           <div>DNS服务器：{data.nameServers.join("、")}</div>
         )}
+        {data.org && <div>注册组织：{data.org}</div>}
         {data.country && <div>国家：{data.country}</div>}
-        {data.org && <div>组织：{data.org}</div>}
+        {data.registrant && <div>注册联系人：{data.registrant}</div>}
+        {data.registrarIANAID && <div>注册商IANA ID：{data.registrarIANAID}</div>}
+        {data.registrarAbuseContactEmail && <div>注册商投诉邮箱：{data.registrarAbuseContactEmail}</div>}
+        {data.registrarAbuseContactPhone && <div>注册商投诉电话：{data.registrarAbuseContactPhone}</div>}
+        {data.registrantStreet && <div>注册地址：{data.registrantStreet}</div>}
+        {data.registrantCity && <div>注册城市：{data.registrantCity}</div>}
+        {data.registrantState && <div>注册省/州：{data.registrantState}</div>}
+        {data.registrantPostalCode && <div>邮编：{data.registrantPostalCode}</div>}
+        {data.registrantPhone && <div>联系电话：{data.registrantPhone}</div>}
+        {data.registrantFax && <div>传真：{data.registrantFax}</div>}
         {data.emails && data.emails.length > 0 && (
           <div>邮箱：{data.emails.join("、")}</div>
         )}
@@ -37,48 +47,6 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
             {rawWhois}
           </pre>
         </details>
-      </div>
-    );
-  }
-
-  // RDAP 展示（如后续恢复，可补充）
-  if (protocol === "rdap" && rdap) {
-    return (
-      <div style={{
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 2px 10px #f1f2f7",
-        padding: 20,
-        marginBottom: 20
-      }}>
-        <h3 style={{ fontWeight: 700, fontSize: 22, color: "#2469f7", margin: 0 }}>
-          {rdap.ldhName || "域名"}
-        </h3>
-        <div style={{ fontSize: 15, margin: "10px 0 0 0", color: registered ? "#2ba95b" : "#b33" }}>
-          {registered ? "已注册" : "未注册"}
-        </div>
-        {rdap.status && (
-          <div style={{ fontSize: 14, margin: "8px 0", color: "#5c667b" }}>
-            状态：{rdap.status.join("、")}
-          </div>
-        )}
-        {rdap.events && (
-          <div style={{ fontSize: 14, margin: "8px 0", color: "#5c667b" }}>
-            {rdap.events.map(e => (
-              <div key={e.eventAction}>
-                {e.eventAction === "registration" && "注册时间：" + e.eventDate}
-                {e.eventAction === "expiration" && "到期时间：" + e.eventDate}
-                {e.eventAction === "last changed" && "最近变更：" + e.eventDate}
-              </div>
-            ))}
-          </div>
-        )}
-        {rdap.nameservers && (
-          <div style={{ fontSize: 14, margin: "8px 0", color: "#5c667b" }}>
-            DNS服务器：{rdap.nameservers.map(ns => ns.ldhName).join("、")}
-          </div>
-        )}
-        {/* 其他RDAP信息可按需补充 */}
       </div>
     );
   }
