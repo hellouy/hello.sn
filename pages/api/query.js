@@ -1,6 +1,5 @@
 const validDomain = require("../../utils/validDomain");
-const whoisQuery = require("../../utils/whoisQuery");
-const rdapQuery = require("../../utils/rdapQuery");
+const robustDomainQuery = require("../../utils/whoisQuery");
 const parseWhois = require("../../utils/parseWhois");
 
 function isUnregistered(whoisRaw, rdap) {
@@ -8,17 +7,6 @@ function isUnregistered(whoisRaw, rdap) {
   if (rdap && rdap.status && Array.isArray(rdap.status)) {
     return rdap.status.some(s => /available|inactive|未注册/i.test(s));
   }
-  return false;
-}
-
-// 判断 RDAP 是否有值且能提取到注册商/注册时间等数据
-function isValidRDAP(rdap) {
-  if (!rdap || typeof rdap !== "object") return false;
-  // 常见字段
-  if (rdap.entities && rdap.entities.length) return true;
-  if (rdap.events && rdap.events.length) return true;
-  if (rdap.status && rdap.status.length) return true;
-  if (rdap.ldhName) return true;
   return false;
 }
 
@@ -31,37 +19,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    let rdap = null, whoisRaw = null, protocol = null;
+    // 健壮查询
+    const result = await robustDomainQuery(domain, server);
+    const whoisParsed = result.whois ? parseWhois(result.whois) : null;
+    const registered = !isUnregistered(result.whois, result.rdap);
 
-    // 1. 先查 RDAP
-    rdap = await rdapQuery(domain);
-
-    // 2. 如果 RDAP 能用且能提取数据，直接返回 RDAP 结果
-    if (isValidRDAP(rdap)) {
-      protocol = "rdap";
-    } else {
-      // 3. 否则自动查 whois（whoisQuery 会自动读取 whois-servers.json 匹配服务器）
-      whoisRaw = await whoisQuery(domain, server);
-      protocol = "whois";
-      // 如果 whois 也查不到
-      if (!whoisRaw) {
-        throw new Error("RDAP和WHOIS均无法获取信息，域名或服务器异常");
-      }
+    // 额外debug信息仅在后台查日志用，前端可选择显示
+    if (result.error) {
+      res.status(500).json({
+        domain,
+        protocol: result.protocol || null,
+        whois: result.whois || null,
+        rdap: result.rdap || null,
+        whoisParsed,
+        registered: false,
+        error: result.error,
+        debug: result.debug
+      });
+      return;
     }
-
-    // 解析 whois
-    const whoisParsed = whoisRaw ? parseWhois(whoisRaw) : null;
-    const registered = !isUnregistered(whoisRaw, rdap);
 
     res.status(200).json({
       domain,
-      protocol, // 返回实际使用的协议，前端可高亮
-      whois: whoisRaw,
-      rdap,
+      protocol: result.protocol,
+      whois: result.whois,
+      rdap: result.rdap,
       whoisParsed,
-      registered
+      registered,
+      debug: result.debug
     });
   } catch (e) {
-    res.status(500).json({ error: "查询出错", detail: e && e.message ? e.message : String(e) });
+    res.status(500).json({
+      error: "查询出错",
+      detail: e && e.message ? e.message : String(e)
+    });
   }
 }
