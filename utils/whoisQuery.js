@@ -24,22 +24,30 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 简单正则解析常见 whois 字段
+// 解析常见 whois 字段
 function parseSimpleWhois(raw) {
   if (!raw) return {};
   const matchers = {
     domainName: /Domain Name:\s*([^\s]+)/i,
     registrar: /Registrar:\s*([^\r\n]+)/i,
-    registrant: /Registrant(?: Name)?:\s*([^\r\n]+)/i,
     creationDate: /Creation Date:\s*([^\r\n]+)/i,
     updatedDate: /Updated Date:\s*([^\r\n]+)/i,
     expiryDate: /(Registry Expiry Date|Expiration Date):\s*([^\r\n]+)/i,
     status: /Status:\s*([^\r\n]+)/i,
     nameServers: /Name Server:\s*([^\r\n]+)/ig,
-    dnssec: /DNSSEC:\s*([^\r\n]+)/i,
+    registrant: /Registrant(?: Name)?:\s*([^\r\n]+)/i,
+    country: /Registrant Country:\s*([^\r\n]+)/i,
+    org: /Registrant Organization:\s*([^\r\n]+)/i,
     emails: /Email:\s*([^\r\n]+)/ig,
-    country: /Country:\s*([^\r\n]+)/i,
-    org: /Organization:\s*([^\r\n]+)/i,
+    registrarIANAID: /Registrar IANA ID:\s*([^\r\n]+)/i,
+    registrarAbuseContactEmail: /Registrar Abuse Contact Email:\s*([^\r\n]+)/i,
+    registrarAbuseContactPhone: /Registrar Abuse Contact Phone:\s*([^\r\n]+)/i,
+    registrantStreet: /Registrant Street:\s*([^\r\n]+)/i,
+    registrantCity: /Registrant City:\s*([^\r\n]+)/i,
+    registrantState: /Registrant State\/Province:\s*([^\r\n]+)/i,
+    registrantPostalCode: /Registrant Postal Code:\s*([^\r\n]+)/i,
+    registrantPhone: /Registrant Phone:\s*([^\r\n]+)/i,
+    registrantFax: /Registrant Fax:\s*([^\r\n]+)/i,
   };
   const result = {};
   for (const key in matchers) {
@@ -58,43 +66,11 @@ function parseSimpleWhois(raw) {
   return result;
 }
 
-async function rdapQuery(domain, timeout = 5000) {
-  const tld = domain.split(".").pop().toLowerCase();
-  const bootstrapUrl = "https://data.iana.org/rdap/dns.json";
-  try {
-    const resp = await fetch(bootstrapUrl, { timeout: 4000 });
-    if (!resp.ok) return null;
-    const data = await resp.json();
-    let rdapServer = null;
-    for (const arr of data.services || []) {
-      if (arr[0].some((s) => s.replace(/^\./, "") === tld)) {
-        rdapServer = arr[1][0]; break;
-      }
-    }
-    if (!rdapServer) return null;
-    const url = `${rdapServer.replace(/\/+$/, "")}/domain/${domain}`;
-    return await Promise.race([
-      fetch(url, { timeout: 4000 }).then(async r => (r.ok ? r.json() : null)),
-      new Promise(resolve => setTimeout(() => resolve(null), timeout))
-    ]);
-  } catch { return null; }
-}
-
-function isValidRDAP(rdap) {
-  if (!rdap || typeof rdap !== "object") return false;
-  if (rdap.ldhName) return true;
-  if (rdap.entities && rdap.entities.length) return true;
-  if (rdap.events && rdap.events.length) return true;
-  if (rdap.status && rdap.status.length) return true;
-  return false;
-}
-
-function isRegisteredByRDAP(rdap) {
-  if (!rdap || typeof rdap !== "object") return false;
-  if (rdap.status && rdap.status.some(s => /available/i.test(s))) return false;
-  if (rdap.events && rdap.events.some(e => e.eventAction === "registration")) return true;
-  if (rdap.ldhName && (rdap.nameservers && rdap.nameservers.length)) return true;
-  if (rdap.ldhName && (!rdap.status || !rdap.status.includes('available'))) return true;
+// 注册状态判断优化
+function isRegisteredByParsedWhois(parsed) {
+  // 只要有注册日期、注册商、域名就判定为已注册
+  if (!parsed) return false;
+  if (parsed.creationDate || parsed.expiryDate || parsed.registrar || parsed.domainName) return true;
   return false;
 }
 
@@ -117,33 +93,14 @@ function getWhoisServer(domain) {
 }
 
 module.exports = async function robustDomainQuery(domain, server, timeout = 10000) {
-  let protocol = "rdap";
-  let rdap = null, whoisRaw = null, error = null, debug = {};
-
-  try {
-    // RDAP 优先（如果不用可注释掉此段）
-    // rdap = await rdapQuery(domain, timeout);
-    // debug.rdapTried = true;
-    // if (isValidRDAP(rdap)) {
-    //   const registered = isRegisteredByRDAP(rdap);
-    //   return { protocol: "rdap", rdap, whois: null, whoisParsed: null, error: null, registered, debug };
-    // }
-
-    // 仅用 whois
-    protocol = "whois";
-    const finalServer = server || getWhoisServer(domain);
-    debug.finalWhoisServer = finalServer;
-    whoisRaw = await doWhoisQuery(domain, finalServer, timeout);
-    if (whoisRaw) {
-      const registered = !isUnregisteredWhois(whoisRaw);
-      const whoisParsed = parseSimpleWhois(whoisRaw);
-      return { protocol: "whois", rdap: null, whois: whoisRaw, whoisParsed, error: null, registered, debug };
-    } else {
-      error = "WHOIS无法获取信息";
-    }
-  } catch (e) {
-    error = e && e.message ? e.message : String(e);
-    debug.catch = error;
+  const finalServer = server || getWhoisServer(domain);
+  const whoisRaw = await doWhoisQuery(domain, finalServer, timeout);
+  let whoisParsed = parseSimpleWhois(whoisRaw);
+  // 优先用解析结果判断注册状态
+  let registered = isRegisteredByParsedWhois(whoisParsed);
+  // 如果还不能判断，用原有未注册正则兜底
+  if (!registered && !isUnregisteredWhois(whoisRaw)) {
+    registered = true;
   }
-  return { protocol, rdap: null, whois: whoisRaw, whoisParsed: null, error, registered: false, debug };
+  return { protocol: "whois", rdap: null, whois: whoisRaw, whoisParsed, error: null, registered };
 };
