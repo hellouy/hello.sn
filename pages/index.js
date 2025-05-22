@@ -9,8 +9,6 @@ export default function Home() {
   const [domain, setDomain] = useState("");
   const [customServer, setCustomServer] = useState("");
   const [showCustomServer, setShowCustomServer] = useState(false);
-
-  // 最近查询历史仅存在内存中，页面刷新即清空
   const [history, setHistory] = useState([]);
   const historyRef = useRef([]);
 
@@ -27,9 +25,8 @@ export default function Home() {
       if (customServer) url += `&server=${encodeURIComponent(customServer)}`;
       const resp = await fetch(url);
       const data = await resp.json();
-      if (data.error) throw data; // 直接抛出整个data对象
+      if (data.error) throw data;
       setResult(data);
-      // 新增历史，去重
       if (!historyRef.current.includes(trimmed)) {
         const newHistory = [trimmed, ...historyRef.current].slice(0, 8);
         historyRef.current = newHistory;
@@ -82,7 +79,6 @@ export default function Home() {
             setShowCustomServer={setShowCustomServer}
             onRefresh={handleRefresh}
           />
-          {/* 说明文案 */}
           <div style={{
             background: "#f6f8fa",
             borderRadius: 12,
@@ -96,7 +92,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 最近查询 */}
         {history.length > 0 && (
           <div style={{
             background: "#fff",
@@ -120,7 +115,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* 查询主内容 */}
         <div>
           <div style={{
             display: "flex",
@@ -151,7 +145,14 @@ export default function Home() {
           </div>
           {loading && <Loader />}
           {result && !result.error && (
-            <ResultCard data={result.whoisParsed} registered={result.registered} />
+            <ResultCard
+              data={result.whoisParsed || result.rdap || result.whois || result}
+              registered={result.registered}
+              protocol={result.protocol}
+              rawWhois={result.whois}
+              rdap={result.rdap}
+              fullResult={result}
+            />
           )}
           {result && result.error && (
             <div style={{ color: "red", marginTop: 16, fontWeight: 600, fontSize: 18 }}>
@@ -161,6 +162,8 @@ export default function Home() {
               )}
             </div>
           )}
+          {/* 调试用 */}
+          {/* {result && <pre style={{fontSize:12, color:'#777', marginTop:16}}>{JSON.stringify(result, null, 2)}</pre>} */}
         </div>
 
         <div style={{ marginTop: 40, color: "#bbb", fontSize: 13, textAlign: "center" }}>
