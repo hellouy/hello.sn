@@ -1,12 +1,8 @@
 import React from "react";
 
 export default function ResultCard({ data, registered, protocol, rawWhois, rdap, fullResult }) {
-  // 确保 data 存在并为对象
   const safe = (v) => (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) ? null : v;
-
-  // 让数组字段变成字符串显示
   const join = (arr) => Array.isArray(arr) ? arr.join("、") : arr;
-
   // 兼容 DNSSEC 字段（有些注册局有）
   const getDnssec = () => {
     if (data && data.dnssec) return data.dnssec;
@@ -46,16 +42,20 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         {safe(data.status) && <div>域名状态：{join(data.status)}</div>}
         {safe(data.nameServers) && <div>DNS服务器：{join(data.nameServers)}</div>}
         {safe(getDnssec()) && <div>DNSSEC：{getDnssec()}</div>}
-        {/* 可选附加信息 */}
         {safe(data.registrant) && <div>注册联系人：{data.registrant}</div>}
         {safe(data.registrantOrg) && <div>注册组织：{data.registrantOrg}</div>}
         {safe(data.registrantEmail) && <div>注册邮箱：{data.registrantEmail}</div>}
         {safe(data.registrantCountry) && <div>注册国家：{data.registrantCountry}</div>}
         {safe(data.registrantCity) && <div>注册城市：{data.registrantCity}</div>}
         {safe(data.registrantStreet) && <div>注册地址：{data.registrantStreet}</div>}
+        {safe(data.registrantState) && <div>省/州：{data.registrantState}</div>}
+        {safe(data.registrantPostalCode) && <div>邮编：{data.registrantPostalCode}</div>}
+        {safe(data.registrantPhone) && <div>联系电话：{data.registrantPhone}</div>}
+        {safe(data.registrantFax) && <div>传真：{data.registrantFax}</div>}
         {safe(data.adminEmail) && <div>管理员邮箱：{data.adminEmail}</div>}
         {safe(data.techEmail) && <div>技术邮箱：{data.techEmail}</div>}
-        {/* 其它邮箱字段 */}
+        {safe(data.abuseContactEmail) && <div>投诉邮箱：{data.abuseContactEmail}</div>}
+        {safe(data.abuseContactPhone) && <div>投诉电话：{data.abuseContactPhone}</div>}
         {safe(data.emails) && <div>邮箱：{join(data.emails)}</div>}
         <details style={{ marginTop: 15 }}>
           <summary style={{ color: "#2469f7", cursor: "pointer" }}>显示原始WHOIS信息</summary>
