@@ -1,7 +1,8 @@
 import React from "react";
 
 export default function ResultCard({ data, registered, protocol, rawWhois, rdap, fullResult }) {
-  if (protocol === "whois" && data && Object.keys(data).length > 0) {
+  // 强健判断：data存在且有内容才渲染结构化信息
+  if (protocol === "whois" && data && typeof data === "object" && Object.keys(data || {}).length > 0) {
     return (
       <div style={{
         background: "#fff",
@@ -26,10 +27,10 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         {data.creationDate && <div>注册时间：{data.creationDate}</div>}
         {data.updatedDate && <div>更新时间：{data.updatedDate}</div>}
         {data.expiryDate && <div>到期时间：{data.expiryDate}</div>}
-        {data.status && data.status.length > 0 && (
+        {Array.isArray(data.status) && data.status.length > 0 && (
           <div>状态：{data.status.join("、")}</div>
         )}
-        {data.nameServers && data.nameServers.length > 0 && (
+        {Array.isArray(data.nameServers) && data.nameServers.length > 0 && (
           <div>DNS服务器：{data.nameServers.join("、")}</div>
         )}
         {data.registrant && <div>注册联系人：{data.registrant}</div>}
@@ -46,7 +47,7 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         {data.techEmail && <div>技术邮箱：{data.techEmail}</div>}
         {data.abuseContactEmail && <div>投诉邮箱：{data.abuseContactEmail}</div>}
         {data.abuseContactPhone && <div>投诉电话：{data.abuseContactPhone}</div>}
-        {data.emails && data.emails.length > 0 && (
+        {Array.isArray(data.emails) && data.emails.length > 0 && (
           <div>邮箱：{data.emails.join("、")}</div>
         )}
         <details style={{ marginTop: 10 }}>
