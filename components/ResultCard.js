@@ -1,8 +1,24 @@
 import React from "react";
 
 export default function ResultCard({ data, registered, protocol, rawWhois, rdap, fullResult }) {
-  // 强健判断：data存在且有内容才渲染结构化信息
-  if (protocol === "whois" && data && typeof data === "object" && Object.keys(data || {}).length > 0) {
+  // 确保 data 存在并为对象
+  const safe = (v) => (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) ? null : v;
+
+  // 让数组字段变成字符串显示
+  const join = (arr) => Array.isArray(arr) ? arr.join("、") : arr;
+
+  // 兼容 DNSSEC 字段（有些注册局有）
+  const getDnssec = () => {
+    if (data && data.dnssec) return data.dnssec;
+    // 从原始文本简单提取
+    if (rawWhois) {
+      const m = rawWhois.match(/DNSSEC:\s*([^\r\n]+)/i);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  if (protocol === "whois" && data && typeof data === "object" && Object.keys(data).length > 0) {
     return (
       <div style={{
         background: "#fff",
@@ -12,7 +28,7 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         marginBottom: 20
       }}>
         <h3 style={{ fontWeight: 700, fontSize: 22, color: "#2469f7", margin: 0 }}>
-          WHOIS信息
+          WHOIS详细信息
         </h3>
         <div style={{
           fontSize: 15,
@@ -22,35 +38,26 @@ export default function ResultCard({ data, registered, protocol, rawWhois, rdap,
         }}>
           {registered ? "已注册" : "未注册"}
         </div>
-        {data.domainName && <div>域名：{data.domainName}</div>}
-        {data.registrar && <div>注册商：{data.registrar}</div>}
-        {data.creationDate && <div>注册时间：{data.creationDate}</div>}
-        {data.updatedDate && <div>更新时间：{data.updatedDate}</div>}
-        {data.expiryDate && <div>到期时间：{data.expiryDate}</div>}
-        {Array.isArray(data.status) && data.status.length > 0 && (
-          <div>状态：{data.status.join("、")}</div>
-        )}
-        {Array.isArray(data.nameServers) && data.nameServers.length > 0 && (
-          <div>DNS服务器：{data.nameServers.join("、")}</div>
-        )}
-        {data.registrant && <div>注册联系人：{data.registrant}</div>}
-        {data.registrantOrg && <div>注册组织：{data.registrantOrg}</div>}
-        {data.registrantEmail && <div>注册邮箱：{data.registrantEmail}</div>}
-        {data.registrantCountry && <div>国家：{data.registrantCountry}</div>}
-        {data.registrantCity && <div>城市：{data.registrantCity}</div>}
-        {data.registrantStreet && <div>注册地址：{data.registrantStreet}</div>}
-        {data.registrantState && <div>省/州：{data.registrantState}</div>}
-        {data.registrantPostalCode && <div>邮编：{data.registrantPostalCode}</div>}
-        {data.registrantPhone && <div>联系电话：{data.registrantPhone}</div>}
-        {data.registrantFax && <div>传真：{data.registrantFax}</div>}
-        {data.adminEmail && <div>管理员邮箱：{data.adminEmail}</div>}
-        {data.techEmail && <div>技术邮箱：{data.techEmail}</div>}
-        {data.abuseContactEmail && <div>投诉邮箱：{data.abuseContactEmail}</div>}
-        {data.abuseContactPhone && <div>投诉电话：{data.abuseContactPhone}</div>}
-        {Array.isArray(data.emails) && data.emails.length > 0 && (
-          <div>邮箱：{data.emails.join("、")}</div>
-        )}
-        <details style={{ marginTop: 10 }}>
+        {safe(data.domainName) && <div>域名：{data.domainName}</div>}
+        {safe(data.registrar) && <div>注册商：{data.registrar}</div>}
+        {safe(data.creationDate) && <div>注册日期：{data.creationDate}</div>}
+        {safe(data.updatedDate) && <div>更新日期：{data.updatedDate}</div>}
+        {safe(data.expiryDate) && <div>过期日期：{data.expiryDate}</div>}
+        {safe(data.status) && <div>域名状态：{join(data.status)}</div>}
+        {safe(data.nameServers) && <div>DNS服务器：{join(data.nameServers)}</div>}
+        {safe(getDnssec()) && <div>DNSSEC：{getDnssec()}</div>}
+        {/* 可选附加信息 */}
+        {safe(data.registrant) && <div>注册联系人：{data.registrant}</div>}
+        {safe(data.registrantOrg) && <div>注册组织：{data.registrantOrg}</div>}
+        {safe(data.registrantEmail) && <div>注册邮箱：{data.registrantEmail}</div>}
+        {safe(data.registrantCountry) && <div>注册国家：{data.registrantCountry}</div>}
+        {safe(data.registrantCity) && <div>注册城市：{data.registrantCity}</div>}
+        {safe(data.registrantStreet) && <div>注册地址：{data.registrantStreet}</div>}
+        {safe(data.adminEmail) && <div>管理员邮箱：{data.adminEmail}</div>}
+        {safe(data.techEmail) && <div>技术邮箱：{data.techEmail}</div>}
+        {/* 其它邮箱字段 */}
+        {safe(data.emails) && <div>邮箱：{join(data.emails)}</div>}
+        <details style={{ marginTop: 15 }}>
           <summary style={{ color: "#2469f7", cursor: "pointer" }}>显示原始WHOIS信息</summary>
           <pre style={{ fontSize: 13, whiteSpace: "pre-wrap", color: "#444", marginTop: 8 }}>
             {rawWhois}
