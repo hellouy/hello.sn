@@ -1,7 +1,6 @@
 const whois = require("whois");
 const whoisServers = require("../whois-servers.json");
 
-// 未注册正则
 const unregisteredPatterns = [
   /no match for/i, /not found/i, /no data found/i, /status:\s?available/i,
   /domain.*not found/i, /does not exist/i, /no entries found/i,
@@ -23,59 +22,74 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 兼容多写法的字段正则
+// 兼容各种主流/冷门TLD和ccTLD字段
 function parseSimpleWhois(raw) {
   if (!raw) return {};
-  // 支持多种字段名
+  // 允许冒号/中文冒号/等号/空格
+  const sep = '[\\s:：=]+';
+  // 允许字段名有空格、下划线、中划线、小写/大写
+  const makeFieldRegex = (fields, multi = false) =>
+    fields.map(f =>
+      new RegExp(`${f}${sep}([^\r\n]+)`, multi ? 'ig' : 'i')
+    );
+
   const matchers = {
-    domainName: [/Domain Name:\s*([^\s]+)/i],
-    registrar: [/Registrar:\s*([^\r\n]+)/i],
-    creationDate: [
-      /Creation Date:\s*([^\r\n]+)/i,
-      /Registered On:\s*([^\r\n]+)/i,
-      /Registration Time:\s*([^\r\n]+)/i
-    ],
-    updatedDate: [
-      /Updated Date:\s*([^\r\n]+)/i,
-      /Last Updated On:\s*([^\r\n]+)/i
-    ],
-    expiryDate: [
-      /Registrar Registration Expiration Date:\s*([^\r\n]+)/i,
-      /Registry Expiry Date:\s*([^\r\n]+)/i,
-      /Expiration Date:\s*([^\r\n]+)/i,
-      /Expires On:\s*([^\r\n]+)/i
-    ],
-    status: [/Status:\s*([^\r\n]+)/ig, /Domain Status:\s*([^\r\n]+)/ig],
-    nameServers: [/Name Server:\s*([^\r\n]+)/ig, /Nameserver:\s*([^\r\n]+)/ig],
-    whoisServer: [/WHOIS Server:\s*([^\r\n]+)/i],
-    registrant: [/Registrant(?: Name)?:\s*([^\r\n]+)/i],
-    dnssec: [/DNSSEC:\s*([^\r\n]+)/i]
+    domainName: makeFieldRegex([
+      "Domain Name", "domain", "域名", "ドメイン名", "Domaine", "Nome do Domínio"
+    ]),
+    registrar: makeFieldRegex([
+      "Registrar", "Sponsoring Registrar", "注册商", "Registrar Name", "Registrar/Registration Service Provider"
+    ]),
+    creationDate: makeFieldRegex([
+      "Creation Date", "Created On", "Registered On", "Registration Time", "Domain Registration Date", "注册时间", "Created", "Domain Create Date", "Created-Date"
+    ]),
+    updatedDate: makeFieldRegex([
+      "Updated Date", "Last Updated On", "Last Update", "Domain Last Updated Date", "更新时间", "Updated", "Last-Modified"
+    ]),
+    expiryDate: makeFieldRegex([
+      "Registrar Registration Expiration Date", "Registry Expiry Date", "Expiration Date", "Expires On", "Paid-till", "Expiry Date", "到期时间", "Expire", "Renewal Date", "Domain Expiration Date", "Expiry", "Expires", "Expires-Date"
+    ]),
+    status: makeFieldRegex([
+      "Status", "Domain Status", "状态", "Domain statuses", "Domain Statuses"
+    ], true),
+    nameServers: makeFieldRegex([
+      "Name Server", "Nameserver", "Nserver", "DNS", "Name Servers", "DNS servers", "Domain servers", "域名服务器"
+    ], true),
+    whoisServer: makeFieldRegex([
+      "WHOIS Server", "Whois Server", "Registrar Whois", "Whois", "WHOIS"
+    ]),
+    registrant: makeFieldRegex([
+      "Registrant Name", "Registrant", "注册人", "Holder", "Domain Holder", "Domain Owner"
+    ]),
+    dnssec: makeFieldRegex([
+      "DNSSEC", "Dnssec", "DNS Sec"
+    ])
   };
+
   const result = {};
   for (const key in matchers) {
-    // 多值字段
-    if (["status","nameServers"].includes(key)) {
+    if (["status", "nameServers"].includes(key)) {
       result[key] = [];
       matchers[key].forEach(reg => {
         let m;
-        while ((m = reg.exec(raw))) result[key].push(m[1]);
+        while ((m = reg.exec(raw))) {
+          let v = m[1].trim();
+          if (v && !result[key].includes(v)) result[key].push(v);
+        }
       });
     } else {
-      let value = null;
       for (let reg of matchers[key]) {
         const m = reg.exec(raw);
-        if (m) {
-          value = m[1];
+        if (m && m[1]) {
+          result[key] = m[1].trim();
           break;
         }
       }
-      if (value) result[key] = value;
     }
   }
   return result;
 }
 
-// 注册状态判断（健壮）
 function isRegisteredByParsedWhois(parsed, whoisRaw) {
   if (!parsed) return false;
   if (
