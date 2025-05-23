@@ -22,51 +22,89 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 支持多语言、多分隔符、多变体
-function makeFieldRegexes(fieldNames, multi = false) {
-  // 分隔符可以是 : ： = 空格
-  const sep = '[\\s:：=]+';
-  return fieldNames.map(f => new RegExp(`${f}${sep}([^\r\n]+)`, multi ? 'ig' : 'i'));
-}
-
+// 超健壮多TLD/ccTLD/不规则WHOIS解析
 function parseSimpleWhois(raw) {
   if (!raw) return {};
+  // 支持各种分隔符与缩进（行首可有空格）
+  const sep = '[\\s:：=]+';
+
+  // 字段正则工厂
+  const makeFieldRegexes = (fields, multi = false) =>
+    fields.map(f =>
+      new RegExp(`^\\s*${f}${sep}([^\r\n]+)`, multi ? 'igm' : 'im')
+    );
+
   const matchers = {
+    // 基本通用字段
     domainName: makeFieldRegexes([
-      "Domain Name", "domain", "域名", "ドメイン名", "Domaine", "Nome do Domínio"
+      "Domain Name", "domain", "域名", "ドメイン名"
     ]),
     registrar: makeFieldRegexes([
-      "Registrar", "Sponsoring Registrar", "注册商", "Registrar Name", "Registrar/Registration Service Provider", "注册服务机构"
+      "Registrar", "Sponsoring Registrar", "注册商", "Registrar Name"
     ]),
     creationDate: makeFieldRegexes([
-      "Creation Date", "Created On", "Created", "Domain Registration Date",
-      "注册时间", "注册日期", "Registration Date", "Registered On", "Domain Create Date", "Domain Created", "Domain created", "成立时间"
+      "Creation Date", "Created On", "Registered On", "Domain Registration Date", "注册时间", "注册日期", "成立时间"
     ]),
     updatedDate: makeFieldRegexes([
-      "Updated Date", "Last Updated On", "Last Update", "Domain Last Updated Date", "更新时间", "Updated", "Last-Modified", "Domain Last Modified"
+      "Updated Date", "Last Updated On", "Last Update", "Domain Last Updated Date", "更新时间", "Modified Date"
     ]),
     expiryDate: makeFieldRegexes([
-      "Registrar Registration Expiration Date", "Registry Expiry Date", "Expiration Date", "Expires On", "Paid-till",
-      "Expiry Date", "到期时间", "Expire", "Renewal Date", "Domain Expiration Date", "Expiry", "Expires", "Expires-Date", "到期日期"
+      "Registrar Registration Expiration Date", "Registry Expiry Date", "Expiration Date", "Expires On", "Paid-till", "Expiry Date", "到期时间", "Expire", "Renewal Date", "Domain Expiration Date", "Expiry", "Expires", "到期日期"
     ]),
     status: makeFieldRegexes([
-      "Status", "Domain Status", "状态", "Domain statuses", "Domain Statuses"
+      "Status", "Domain Status", "状态"
     ], true),
     nameServers: makeFieldRegexes([
-      "Name Server", "Nameserver", "Nserver", "DNS", "Name Servers", "DNS servers", "Domain servers", "域名服务器"
+      "Name Server", "Nameserver", "Nserver", "DNS", "Name Servers", "DNS servers", "域名服务器"
     ], true),
-    whoisServer: makeFieldRegexes([
-      "WHOIS Server", "Whois Server", "Registrar Whois", "Whois", "WHOIS"
-    ]),
-    registrant: makeFieldRegexes([
-      "Registrant Name", "Registrant", "注册人", "Holder", "Domain Holder", "Domain Owner", "所有者"
-    ]),
-    registrantEmail: makeFieldRegexes([
-      "Registrant Email", "注册人邮箱", "Holder Email", "邮箱"
-    ]),
-    registrantCountry: makeFieldRegexes([
-      "Registrant Country", "注册人国家", "Holder Country", "国家"
-    ]),
+
+    // 增强：BN等国别块/多级信息结构
+    // Registrant 区块
+    registrant: [
+      /^\s*Registrant:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantEmail: [
+      /^\s*Registrant:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantOrg: [
+      /^\s*Registrant Organization\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantStreet: [
+      /^\s*Registrant Street\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantCity: [
+      /^\s*Registrant City\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantState: [
+      /^\s*Registrant State\/Province\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantPostalCode: [
+      /^\s*Registrant Postal Code\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantCountry: [
+      /^\s*Registrant Country\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    registrantPhone: [
+      /^\s*Registrant Phone\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+
+    // 管理联系人
+    adminName: [
+      /^\s*Administrative Contact:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    adminEmail: [
+      /^\s*Administrative Contact:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+
+    // 技术联系人
+    techName: [
+      /^\s*Technical Contact:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+    techEmail: [
+      /^\s*Technical Contact:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
+    ],
+
+    // DNSSEC
     dnssec: makeFieldRegexes([
       "DNSSEC", "Dnssec", "DNS Sec"
     ])
@@ -84,7 +122,7 @@ function parseSimpleWhois(raw) {
         }
       });
     } else {
-      for (let reg of matchers[key]) {
+      for (const reg of matchers[key]) {
         const m = reg.exec(raw);
         if (m && m[1]) {
           result[key] = m[1].trim();
@@ -93,6 +131,17 @@ function parseSimpleWhois(raw) {
       }
     }
   }
+
+  // 针对BN等Name Servers块特殊处理（多行紧跟着，且无冒号）
+  if ((!result.nameServers || result.nameServers.length === 0) && /Name Servers?:/i.test(raw)) {
+    const nsBlock = raw.match(/Name Servers?:\s*([\s\S]+?)(?:\n\s*\n|$)/i);
+    if (nsBlock && nsBlock[1]) {
+      result.nameServers = nsBlock[1].split('\n')
+        .map(s => s.trim())
+        .filter(s => !!s && !s.toLowerCase().includes('name server'));
+    }
+  }
+
   return result;
 }
 
