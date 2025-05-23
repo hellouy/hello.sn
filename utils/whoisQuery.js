@@ -1,7 +1,7 @@
 const whois = require("whois");
 const whoisServers = require("../whois-servers.json");
 
-// 多语言“未注册”特征
+// 未注册正则
 const unregisteredPatterns = [
   /no match for/i, /not found/i, /no data found/i, /status:\s?available/i,
   /domain.*not found/i, /does not exist/i, /no entries found/i,
@@ -23,63 +23,67 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 更丰富的正则解析
+// 兼容多写法的字段正则
 function parseSimpleWhois(raw) {
   if (!raw) return {};
+  // 支持多种字段名
   const matchers = {
-    domainName: /Domain Name:\s*([^\s]+)/i,
-    registrar: /Registrar:\s*([^\r\n]+)/i,
-    creationDate: /Creation Date:\s*([^\r\n]+)/i,
-    updatedDate: /Updated Date:\s*([^\r\n]+)/i,
-    expiryDate: /(Registry Expiry Date|Registrar Registration Expiration Date|Expiration Date):\s*([^\r\n]+)/i,
-    status: /Status:\s*([^\r\n]+)/ig,
-    nameServers: /Name Server:\s*([^\r\n]+)/ig,
-    dnssec: /DNSSEC:\s*([^\r\n]+)/i,
-    registrant: /Registrant(?: Name)?:\s*([^\r\n]+)/i,
-    registrantOrg: /Registrant Organization:\s*([^\r\n]+)/i,
-    registrantEmail: /Registrant Email:\s*([^\r\n]+)/i,
-    registrantCountry: /Registrant Country:\s*([^\r\n]+)/i,
-    registrantCity: /Registrant City:\s*([^\r\n]+)/i,
-    registrantStreet: /Registrant Street:\s*([^\r\n]+)/i,
-    registrantState: /Registrant State\/Province:\s*([^\r\n]+)/i,
-    registrantPostalCode: /Registrant Postal Code:\s*([^\r\n]+)/i,
-    registrantPhone: /Registrant Phone:\s*([^\r\n]+)/i,
-    registrantFax: /Registrant Fax:\s*([^\r\n]+)/i,
-    adminEmail: /Admin Email:\s*([^\r\n]+)/i,
-    techEmail: /Tech Email:\s*([^\r\n]+)/i,
-    abuseContactEmail: /Abuse Contact Email:\s*([^\r\n]+)/i,
-    abuseContactPhone: /Abuse Contact Phone:\s*([^\r\n]+)/i,
-    emails: /Email:\s*([^\r\n]+)/ig
+    domainName: [/Domain Name:\s*([^\s]+)/i],
+    registrar: [/Registrar:\s*([^\r\n]+)/i],
+    creationDate: [
+      /Creation Date:\s*([^\r\n]+)/i,
+      /Registered On:\s*([^\r\n]+)/i,
+      /Registration Time:\s*([^\r\n]+)/i
+    ],
+    updatedDate: [
+      /Updated Date:\s*([^\r\n]+)/i,
+      /Last Updated On:\s*([^\r\n]+)/i
+    ],
+    expiryDate: [
+      /Registrar Registration Expiration Date:\s*([^\r\n]+)/i,
+      /Registry Expiry Date:\s*([^\r\n]+)/i,
+      /Expiration Date:\s*([^\r\n]+)/i,
+      /Expires On:\s*([^\r\n]+)/i
+    ],
+    status: [/Status:\s*([^\r\n]+)/ig, /Domain Status:\s*([^\r\n]+)/ig],
+    nameServers: [/Name Server:\s*([^\r\n]+)/ig, /Nameserver:\s*([^\r\n]+)/ig],
+    whoisServer: [/WHOIS Server:\s*([^\r\n]+)/i],
+    registrant: [/Registrant(?: Name)?:\s*([^\r\n]+)/i],
+    dnssec: [/DNSSEC:\s*([^\r\n]+)/i]
   };
   const result = {};
   for (const key in matchers) {
     // 多值字段
-    if (["status","nameServers","emails"].includes(key)) {
+    if (["status","nameServers"].includes(key)) {
       result[key] = [];
-      let m;
-      while ((m = matchers[key].exec(raw))) result[key].push(m[1]);
-    } else if (key === "expiryDate") {
-      const m = matchers[key].exec(raw);
-      if (m) result[key] = m[2] || m[1];
+      matchers[key].forEach(reg => {
+        let m;
+        while ((m = reg.exec(raw))) result[key].push(m[1]);
+      });
     } else {
-      const m = matchers[key].exec(raw);
-      if (m) result[key] = m[1];
+      let value = null;
+      for (let reg of matchers[key]) {
+        const m = reg.exec(raw);
+        if (m) {
+          value = m[1];
+          break;
+        }
+      }
+      if (value) result[key] = value;
     }
   }
   return result;
 }
 
-// 注册状态判断（更健壮）
+// 注册状态判断（健壮）
 function isRegisteredByParsedWhois(parsed, whoisRaw) {
   if (!parsed) return false;
-  // 只要有注册日期、到期日期、注册商、域名就认为是已注册
   if (
     (parsed.creationDate && parsed.creationDate.length > 0) ||
     (parsed.expiryDate && parsed.expiryDate.length > 0) ||
     (parsed.registrar && parsed.registrar.length > 0) ||
     (parsed.domainName && parsed.domainName.length > 0)
   ) return true;
-  // 如果没有解析出来，但原始文本没有命中“未注册”正则，也认为已注册
   if (whoisRaw && !isUnregisteredWhois(whoisRaw)) return true;
   return false;
 }
