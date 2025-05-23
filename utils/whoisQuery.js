@@ -22,25 +22,22 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 超健壮多TLD/ccTLD/不规则WHOIS解析
 function parseSimpleWhois(raw) {
   if (!raw) return {};
-  // 支持各种分隔符与缩进（行首可有空格）
+  // 多语种/多写法/多分隔符
   const sep = '[\\s:：=]+';
 
-  // 字段正则工厂
+  // 字段正则(多行)
   const makeFieldRegexes = (fields, multi = false) =>
     fields.map(f =>
       new RegExp(`^\\s*${f}${sep}([^\r\n]+)`, multi ? 'igm' : 'im')
     );
-
   const matchers = {
-    // 基本通用字段
     domainName: makeFieldRegexes([
-      "Domain Name", "domain", "域名", "ドメイン名"
+      "Domain Name", "domain", "域名"
     ]),
     registrar: makeFieldRegexes([
-      "Registrar", "Sponsoring Registrar", "注册商", "Registrar Name"
+      "Registrar", "Sponsoring Registrar", "注册商"
     ]),
     creationDate: makeFieldRegexes([
       "Creation Date", "Created On", "Registered On", "Domain Registration Date", "注册时间", "注册日期", "成立时间"
@@ -57,54 +54,9 @@ function parseSimpleWhois(raw) {
     nameServers: makeFieldRegexes([
       "Name Server", "Nameserver", "Nserver", "DNS", "Name Servers", "DNS servers", "域名服务器"
     ], true),
-
-    // 增强：BN等国别块/多级信息结构
-    // Registrant 区块
-    registrant: [
-      /^\s*Registrant:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantEmail: [
-      /^\s*Registrant:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantOrg: [
-      /^\s*Registrant Organization\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantStreet: [
-      /^\s*Registrant Street\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantCity: [
-      /^\s*Registrant City\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantState: [
-      /^\s*Registrant State\/Province\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantPostalCode: [
-      /^\s*Registrant Postal Code\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantCountry: [
-      /^\s*Registrant Country\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    registrantPhone: [
-      /^\s*Registrant Phone\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-
-    // 管理联系人
-    adminName: [
-      /^\s*Administrative Contact:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    adminEmail: [
-      /^\s*Administrative Contact:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-
-    // 技术联系人
-    techName: [
-      /^\s*Technical Contact:\s*\n\s*Name\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-    techEmail: [
-      /^\s*Technical Contact:[\s\S]*?Email\s*[:：=]+\s*([^\r\n]+)/im
-    ],
-
-    // DNSSEC
+    whoisServer: makeFieldRegexes([
+      "WHOIS Server"
+    ]),
     dnssec: makeFieldRegexes([
       "DNSSEC", "Dnssec", "DNS Sec"
     ])
@@ -132,7 +84,7 @@ function parseSimpleWhois(raw) {
     }
   }
 
-  // 针对BN等Name Servers块特殊处理（多行紧跟着，且无冒号）
+  // 兼容 Name Servers: 块多行（如BN等国别域名）
   if ((!result.nameServers || result.nameServers.length === 0) && /Name Servers?:/i.test(raw)) {
     const nsBlock = raw.match(/Name Servers?:\s*([\s\S]+?)(?:\n\s*\n|$)/i);
     if (nsBlock && nsBlock[1]) {
