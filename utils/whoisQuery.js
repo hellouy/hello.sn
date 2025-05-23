@@ -1,8 +1,7 @@
 const whois = require("whois");
 const whoisServers = require("../whois-servers.json");
-const fetch = require("node-fetch");
 
-// 常见未注册正则（多语言+ccTLD/gTLD）
+// 多语言“未注册”特征
 const unregisteredPatterns = [
   /no match for/i, /not found/i, /no data found/i, /status:\s?available/i,
   /domain.*not found/i, /does not exist/i, /no entries found/i,
@@ -24,7 +23,7 @@ function isUnregisteredWhois(whoisRaw) {
   return unregisteredPatterns.some(re => re.test(normalized));
 }
 
-// 解析常见 whois 字段
+// 更丰富的正则解析
 function parseSimpleWhois(raw) {
   if (!raw) return {};
   const matchers = {
@@ -32,26 +31,30 @@ function parseSimpleWhois(raw) {
     registrar: /Registrar:\s*([^\r\n]+)/i,
     creationDate: /Creation Date:\s*([^\r\n]+)/i,
     updatedDate: /Updated Date:\s*([^\r\n]+)/i,
-    expiryDate: /(Registry Expiry Date|Expiration Date):\s*([^\r\n]+)/i,
-    status: /Status:\s*([^\r\n]+)/i,
+    expiryDate: /(Registry Expiry Date|Registrar Registration Expiration Date|Expiration Date):\s*([^\r\n]+)/i,
+    status: /Status:\s*([^\r\n]+)/ig,
     nameServers: /Name Server:\s*([^\r\n]+)/ig,
+    dnssec: /DNSSEC:\s*([^\r\n]+)/i,
     registrant: /Registrant(?: Name)?:\s*([^\r\n]+)/i,
-    country: /Registrant Country:\s*([^\r\n]+)/i,
-    org: /Registrant Organization:\s*([^\r\n]+)/i,
-    emails: /Email:\s*([^\r\n]+)/ig,
-    registrarIANAID: /Registrar IANA ID:\s*([^\r\n]+)/i,
-    registrarAbuseContactEmail: /Registrar Abuse Contact Email:\s*([^\r\n]+)/i,
-    registrarAbuseContactPhone: /Registrar Abuse Contact Phone:\s*([^\r\n]+)/i,
-    registrantStreet: /Registrant Street:\s*([^\r\n]+)/i,
+    registrantOrg: /Registrant Organization:\s*([^\r\n]+)/i,
+    registrantEmail: /Registrant Email:\s*([^\r\n]+)/i,
+    registrantCountry: /Registrant Country:\s*([^\r\n]+)/i,
     registrantCity: /Registrant City:\s*([^\r\n]+)/i,
+    registrantStreet: /Registrant Street:\s*([^\r\n]+)/i,
     registrantState: /Registrant State\/Province:\s*([^\r\n]+)/i,
     registrantPostalCode: /Registrant Postal Code:\s*([^\r\n]+)/i,
     registrantPhone: /Registrant Phone:\s*([^\r\n]+)/i,
     registrantFax: /Registrant Fax:\s*([^\r\n]+)/i,
+    adminEmail: /Admin Email:\s*([^\r\n]+)/i,
+    techEmail: /Tech Email:\s*([^\r\n]+)/i,
+    abuseContactEmail: /Abuse Contact Email:\s*([^\r\n]+)/i,
+    abuseContactPhone: /Abuse Contact Phone:\s*([^\r\n]+)/i,
+    emails: /Email:\s*([^\r\n]+)/ig
   };
   const result = {};
   for (const key in matchers) {
-    if (key === "nameServers" || key === "emails") {
+    // 多值字段
+    if (["status","nameServers","emails"].includes(key)) {
       result[key] = [];
       let m;
       while ((m = matchers[key].exec(raw))) result[key].push(m[1]);
@@ -66,11 +69,18 @@ function parseSimpleWhois(raw) {
   return result;
 }
 
-// 注册状态判断优化
-function isRegisteredByParsedWhois(parsed) {
-  // 只要有注册日期、注册商、域名就判定为已注册
+// 注册状态判断（更健壮）
+function isRegisteredByParsedWhois(parsed, whoisRaw) {
   if (!parsed) return false;
-  if (parsed.creationDate || parsed.expiryDate || parsed.registrar || parsed.domainName) return true;
+  // 只要有注册日期、到期日期、注册商、域名就认为是已注册
+  if (
+    (parsed.creationDate && parsed.creationDate.length > 0) ||
+    (parsed.expiryDate && parsed.expiryDate.length > 0) ||
+    (parsed.registrar && parsed.registrar.length > 0) ||
+    (parsed.domainName && parsed.domainName.length > 0)
+  ) return true;
+  // 如果没有解析出来，但原始文本没有命中“未注册”正则，也认为已注册
+  if (whoisRaw && !isUnregisteredWhois(whoisRaw)) return true;
   return false;
 }
 
@@ -96,11 +106,6 @@ module.exports = async function robustDomainQuery(domain, server, timeout = 1000
   const finalServer = server || getWhoisServer(domain);
   const whoisRaw = await doWhoisQuery(domain, finalServer, timeout);
   let whoisParsed = parseSimpleWhois(whoisRaw);
-  // 优先用解析结果判断注册状态
-  let registered = isRegisteredByParsedWhois(whoisParsed);
-  // 如果还不能判断，用原有未注册正则兜底
-  if (!registered && !isUnregisteredWhois(whoisRaw)) {
-    registered = true;
-  }
+  let registered = isRegisteredByParsedWhois(whoisParsed, whoisRaw);
   return { protocol: "whois", rdap: null, whois: whoisRaw, whoisParsed, error: null, registered };
 };
