@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import DomainForm from "../components/DomainForm";
 import ResultCard from "../components/ResultCard";
 import Loader from "../components/Loader";
+import BadgeSwitch from "../components/BadgeSwitch";
 
 export default function Home() {
   const [result, setResult] = useState(null);
@@ -49,6 +50,7 @@ export default function Home() {
 
   return (
     <div style={{ background: "#fafbfc", minHeight: "100vh" }}>
+      <BadgeSwitch />
       <div style={{ maxWidth: 470, margin: "20px auto 0 auto", padding: 0 }}>
         <div style={{
           background: "#fff",
